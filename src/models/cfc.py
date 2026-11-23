@@ -54,21 +54,21 @@ class CfCCell(nn.Module):
         return x_output
 
 
-    def _forward_native(self, x, u, dt):
-        xu = torch.cat([x, u], dim=-1)
-        x_pos_backbone = self.backbone(xu)
-        x_neg_backbone = self.backbone(-xu)
+    def _forward_native(self, x, history, dt):
+        xh = torch.cat([x, history], dim=-1)
+        x_pos_backbone = self.backbone(xh)
+        x_neg_backbone = self.backbone(-xh)
 
         f_pos = f.softplus(self.time(x_pos_backbone))
         f_neg = torch.sigmoid(self.time(x_neg_backbone))
         omega = f.softplus(self.omega)
 
         decay = torch.exp( -dt * (omega + f_pos))
-        x_output = self.alpha + (u - self.alpha) * f_neg * decay
+        x_output = self.alpha + (history - self.alpha) * f_neg * decay
         return x_output
 
 
-    def forward(self, x, u, dt):
+    def forward(self, x, history, dt):
         """
         x : input at current time step
         u : history
@@ -77,9 +77,9 @@ class CfCCell(nn.Module):
         if dt.ndim ==1:
             dt = dt.unsqueeze(-1)
         if self._use_gate is True:
-            return self._forward_gate(x, u, dt)
+            return self._forward_gate(x, history, dt)
         else:
-            return self._forward_native(x, u, dt)
+            return self._forward_native(x, history, dt)
 
 
 class CfC(nn.Module):
