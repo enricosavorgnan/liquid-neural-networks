@@ -91,7 +91,7 @@ if __name__ == "__main__":
         "model": {
             "name": "CfC",
             "input_dim": 3,
-            "history_dim": 32,
+            "state_dim": 32,
             "output_dim": 3,
             "use_gate": True,
             "backbone_hidden_dim": 64,
@@ -120,11 +120,15 @@ if __name__ == "__main__":
         description="Closed-form Continuous-Time Neural Networks. Pass --config path/to/config.yaml."
     )
     parser.add_argument("--config", type=str, help="Path to the YAML config file.")
+    parser.add_argument("--device", type=str, default=None, help="Override device from config (e.g. cpu, xpu, cuda, auto).")
     args = parser.parse_args()
 
     if args.config:
         with open(args.config, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         config = parse_config(config)
+
+    if args.device is not None:
+        config["device"] = args.device
 
     main(config)
