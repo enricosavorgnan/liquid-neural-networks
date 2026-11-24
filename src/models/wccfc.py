@@ -104,7 +104,7 @@ class WC_CfC(nn.Module):
         self.output = nn.Linear(in_features=2*state_dim, out_features=output_dim)
 
 
-    def forward(self, x_sequence, dt_sequence):
+    def forward(self, x_sequence, dt_sequence, state=None, return_trajectory=False):
         """
         Notice that dt_sequence should not to be considered here as the timesteps, but the time intervals Δt!
         """
@@ -112,21 +112,27 @@ class WC_CfC(nn.Module):
         if dt_sequence.ndim == 2:
             dt_sequence = dt_sequence.unsqueeze(-1)
 
-        # Initialize empty history
-        states_E = torch.zeros(B, self.state_dim, device=x_sequence.device, dtype=x_sequence.dtype)
-        states_I = torch.zeros(B, self.state_dim, device=x_sequence.device, dtype=x_sequence.dtype)
+        if state is None:
+            states_E = torch.zeros(B, self.state_dim, device=x_sequence.device, dtype=x_sequence.dtype)
+            states_I = torch.zeros(B, self.state_dim, device=x_sequence.device, dtype=x_sequence.dtype)
+        else:
+            states_E, states_I = state
 
-        # Initialize empty outputs
         outputs = []
-        # Recurrent step
+        e_traj = [] if return_trajectory else None
+        i_traj = [] if return_trajectory else None
         for t in range(T):
             states_E, states_I = self.cell(x_sequence[:, t], (states_E, states_I), dt_sequence[:, t])
-            print(f"E: {states_E}")
-            print(f"I: {states_I}")
             outputs.append(self.output(torch.cat([states_E, states_I], dim=-1)))
+            if return_trajectory:
+                e_traj.append(states_E)
+                i_traj.append(states_I)
 
+        out = torch.stack(outputs, dim=1)
         history = [states_E, states_I]
-        return torch.stack(outputs, dim=1), history
+        if return_trajectory:
+            return out, history, {"E": torch.stack(e_traj, dim=1), "I": torch.stack(i_traj, dim=1)}
+        return out, history
 
 
 if __name__ == "__main__":
