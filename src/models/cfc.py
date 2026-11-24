@@ -7,7 +7,7 @@ class CfCCell(nn.Module):
 
     def __init__(self,
                  input_dim : int = 2,
-                 history_dim : int = 2,
+                 state_dim : int = 2,
                  use_gate : bool = True,
                  backbone_hidden_dim : int = 16,
                  backbone_output_dim : int = 8,
@@ -15,7 +15,7 @@ class CfCCell(nn.Module):
 
         super().__init__()
 
-        self.backbone = nn.Sequential(nn.Linear(in_features=input_dim+history_dim, out_features=backbone_hidden_dim),
+        self.backbone = nn.Sequential(nn.Linear(in_features=input_dim+state_dim, out_features=backbone_hidden_dim),
                                       backbone_activation_func(),
                                       nn.Linear(in_features=backbone_hidden_dim, out_features=backbone_hidden_dim),
                                       backbone_activation_func(),
@@ -24,17 +24,17 @@ class CfCCell(nn.Module):
 
         self._use_gate = use_gate
         if not self._use_gate:
-            self.alpha = nn.Parameter(data=torch.randn(1, history_dim)*0.1, requires_grad=True)
-            self.omega = nn.Parameter(data=torch.zeros(1, history_dim), requires_grad=True)
-            self.time = nn.Linear(in_features=backbone_output_dim, out_features=history_dim)
+            self.alpha = nn.Parameter(data=torch.randn(1, state_dim)*0.1, requires_grad=True)
+            self.omega = nn.Parameter(data=torch.zeros(1, state_dim), requires_grad=True)
+            self.time = nn.Linear(in_features=backbone_output_dim, out_features=state_dim)
         else:
-            self.g = nn.Sequential(nn.Linear(in_features=backbone_output_dim, out_features=history_dim),
+            self.g = nn.Sequential(nn.Linear(in_features=backbone_output_dim, out_features=state_dim),
                                    nn.Tanh())
-            self.h = nn.Sequential(nn.Linear(in_features=backbone_output_dim, out_features=history_dim),
+            self.h = nn.Sequential(nn.Linear(in_features=backbone_output_dim, out_features=state_dim),
                                    nn.Tanh())
 
-            self.time_as_weight = nn.Linear(in_features=backbone_output_dim, out_features=history_dim)
-            self.time_as_bias = nn.Linear(in_features=backbone_output_dim, out_features=history_dim)
+            self.time_as_weight = nn.Linear(in_features=backbone_output_dim, out_features=state_dim)
+            self.time_as_bias = nn.Linear(in_features=backbone_output_dim, out_features=state_dim)
 
 
     def _forward_gate(self, x, u, dt):
@@ -86,7 +86,7 @@ class CfC(nn.Module):
 
     def __init__(self,
                  input_dim,
-                 history_dim,
+                 state_dim,
                  output_dim,
                  use_gate,
                  backbone_hidden_dim,
@@ -94,17 +94,17 @@ class CfC(nn.Module):
                  backbone_activation_func,
                  *args, **kwargs):
         super().__init__()
-        self.history_dim = history_dim
+        self.state_dim = state_dim
         self.cell = CfCCell(input_dim=input_dim,
-                            history_dim=history_dim,
+                            state_dim=state_dim,
                             use_gate=use_gate,
                             backbone_hidden_dim=backbone_hidden_dim,
                             backbone_activation_func=backbone_activation_func,
                             backbone_output_dim=backbone_output_dim)
-        self.output = nn.Linear(in_features=history_dim, out_features=output_dim)
+        self.output = nn.Linear(in_features=state_dim, out_features=output_dim)
 
 
-    def forward(self, x_sequence, dt_sequence):
+    def forward(self, x_sequence, dt_sequence, state=None, return_trajectory=False):
         """
         Notice that dt_sequence should not to be considered here as the timesteps, but the time intervals Δt!
         """
@@ -112,23 +112,28 @@ class CfC(nn.Module):
         if dt_sequence.ndim == 2:
             dt_sequence = dt_sequence.unsqueeze(-1)
 
-        # Initialize empty history
-        history = torch.zeros(B, self.history_dim, device=x_sequence.device, dtype=x_sequence.dtype)
-        # Initialize empty outputs
-        outputs = []
-        # Recurrent step
-        for t in range(T):
-            history = self.cell(x_sequence[:, t], history, dt_sequence[:, t])
-            outputs.append(self.output(history))
+        if state is None:
+            state = torch.zeros(B, self.state_dim, device=x_sequence.device, dtype=x_sequence.dtype)
 
-        return torch.stack(outputs, dim=1), history
+        outputs = []
+        state_traj = [] if return_trajectory else None
+        for t in range(T):
+            state = self.cell(x_sequence[:, t], state, dt_sequence[:, t])
+            outputs.append(self.output(state))
+            if return_trajectory:
+                state_traj.append(state)
+
+        out = torch.stack(outputs, dim=1)
+        if return_trajectory:
+            return out, state, torch.stack(state_traj, dim=1)
+        return out, state
 
 
 
 
 if __name__ == "__main__":
 
-    model = CfC(input_dim=3, history_dim=16, output_dim=3, use_gate=False,
+    model = CfC(input_dim=3, state_dim=16, output_dim=3, use_gate=False,
                 backbone_hidden_dim=32, backbone_output_dim=16,
                 backbone_activation_func=nn.SiLU)
     x = torch.randn(4, 20, 3)
