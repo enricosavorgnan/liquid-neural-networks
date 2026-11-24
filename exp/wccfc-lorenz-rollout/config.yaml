@@ -1,0 +1,42 @@
+mode: train
+device: cpu
+plot: true
+
+data:
+  name: lorenz
+  n_traj: 512
+  seq_len: 128
+  dt_min: 0.05
+  dt_max: 0.2
+  burn_in: 1.0
+  split: [0.8, 0.1, 0.1]
+  batch_size: 128
+  normalize: true
+  seed: 42
+  system_kwargs: {}
+
+model:
+  name: WC_CfC
+  input_dim: 3
+  state_dim: 32
+  output_dim: 3
+  use_gate: true   # false: exp semigroup, true: sigmoid gate
+  backbone_hidden_dim: 64
+  backbone_output_dim: 32
+  backbone_activation_func: nn.SiLU
+
+train:
+  n_epochs: 1500
+  lr: 0.001
+  lr_decay: 0.999
+  rollout: true
+  rollout_steps: [[1, 250], [2, 200], [4, 350], [8, 350], [16, 350]]
+  window: 64
+  loss_window_weight: 1.0
+  val_every: 25
+  checkpoint: false
+  checkpoint_path: exp/wccfc-lorenz-rollout/best_model.pt
+
+save:
+  save: true
+  path: exp/wccfc-lorenz-rollout
