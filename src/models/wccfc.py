@@ -17,7 +17,7 @@ class WC_CfCCell(nn.Module):
 
         self._use_gate = use_gate
 
-        init_val = torch.tensor(1.0 / (state_dim ** 0.5))
+        init_val = torch.log(torch.expm1(torch.tensor(1.0 / state_dim)))
         self.w_ee = nn.Parameter(init_val + 0.1 * torch.randn(state_dim, state_dim))
         self.w_ei = nn.Parameter(init_val + 0.1 * torch.randn(state_dim, state_dim))
         self.w_ie = nn.Parameter(init_val + 0.1 * torch.randn(state_dim, state_dim))
