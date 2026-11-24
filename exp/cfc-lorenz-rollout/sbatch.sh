@@ -10,12 +10,12 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
-#SBATCH --time=01:00:00
+#SBATCH --time=12:00:00
 
 set -e
 
 # ==============================================================================
-# ENVIRONMENT SETUP
+# ENVIRONMENT SETUP (on compute node)
 # ==============================================================================
 
 if [ -n "$SLURM_SUBMIT_DIR" ]; then
@@ -25,18 +25,25 @@ fi
 mkdir -p log
 echo "Working directory: $(pwd)"
 
-VENV_PY="$(pwd)/.venv/bin/python"
-if [ ! -x "${VENV_PY}" ]; then
-    echo "Virtual environment not found. Creating .venv..."
-    python3 -m venv .venv || python -m venv .venv
-    "${VENV_PY}" -m ensurepip --upgrade --default-pip || true
-    "${VENV_PY}" -m pip install --quiet --upgrade pip
-    if [ -f "requirements.txt" ]; then
-        "${VENV_PY}" -m pip install --quiet -r requirements.txt
-    fi
-fi
+VENV_DIR="$(pwd)/.venv"
+VENV_PY="${VENV_DIR}/bin/python"
 
-source "$(pwd)/.venv/bin/activate"
+# Serialize venv creation across parallel compute-node jobs
+(
+    flock -x 200
+    if [ ! -x "${VENV_PY}" ]; then
+        echo "Virtual environment not found. Creating .venv on compute node..."
+        python3 -m venv "${VENV_DIR}" || python -m venv "${VENV_DIR}"
+        "${VENV_PY}" -m ensurepip --upgrade --default-pip || true
+        "${VENV_PY}" -m pip install --quiet --upgrade pip
+        if [ -f "requirements.txt" ]; then
+            echo "Installing requirements..."
+            "${VENV_PY}" -m pip install --quiet -r requirements.txt
+        fi
+    fi
+) 200>"${VENV_DIR}.lock"
+
+source "${VENV_DIR}/bin/activate"
 echo "Using Python: $(which python) ($(python --version 2>&1))"
 
 export PYTHONPATH="$(pwd):${PYTHONPATH:-}"

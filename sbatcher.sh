@@ -6,27 +6,13 @@ set -e
 #
 # Usage (from repository root or anywhere):
 #   bash sbatcher.sh           # Submit all SLURM jobs
-#   bash sbatcher.sh --local   # Run all experiments sequentially in current shell
+#   bash sbatcher.sh --local   # Run all experiment scripts sequentially locally
 # ==============================================================================
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${REPO_ROOT}"
 
 mkdir -p log
-
-# Ensure .venv exists and dependencies are installed once before parallel sbatch
-VENV_DIR="${REPO_ROOT}/.venv"
-VENV_PY="${VENV_DIR}/bin/python"
-if [ ! -x "${VENV_PY}" ]; then
-    echo "Virtual environment not found at ${VENV_DIR}. Creating it..."
-    python3 -m venv "${VENV_DIR}" || python -m venv "${VENV_DIR}"
-    "${VENV_PY}" -m ensurepip --upgrade --default-pip || true
-    "${VENV_PY}" -m pip install --quiet --upgrade pip
-    if [ -f "${REPO_ROOT}/requirements.txt" ]; then
-        echo "Installing requirements into ${VENV_DIR}..."
-        "${VENV_PY}" -m pip install --quiet -r "${REPO_ROOT}/requirements.txt"
-    fi
-fi
 
 EXPERIMENTS=(
     "cfc-lorenz-rollout"
@@ -41,14 +27,11 @@ EXPERIMENTS=(
 
 if [ "${1:-}" == "--local" ]; then
     echo "Running all ${#EXPERIMENTS[@]} experiments sequentially in local mode..."
-    source "${VENV_DIR}/bin/activate"
-    export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
-    export MPLBACKEND="Agg"
     for exp in "${EXPERIMENTS[@]}"; do
-        cfg="./exp/${exp}/config.yaml"
+        script="./exp/${exp}/sbatch.sh"
         echo "------------------------------------------------------------"
-        echo "Running ${exp} (${cfg}) ..."
-        "${VENV_PY}" -u -m src.main --config "${cfg}" --device auto
+        echo "Running ${script} ..."
+        bash "${script}"
     done
     exit 0
 fi
