@@ -14,10 +14,10 @@ data:
   normalize: true
   seed: 42
   system_kwargs:
-    delta: 0.2
-    alpha: 1.0
+    delta: 0.3
+    alpha: -1.0
     beta: 1.0
-    gamma: 0.0
+    gamma: 0.5
     omega: 1.2
 
 model:
