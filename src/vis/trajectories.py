@@ -47,9 +47,9 @@ def plot_trajectories(
             ax.grid(True, alpha=0.25)
 
     handles, leg_labels = axes[0, 0].get_legend_handles_labels()
-    fig_ts.legend(handles, leg_labels, loc="upper right", ncol=3, frameon=False)
-    fig_ts.suptitle(f"{model_name} — Reconstructed Trajectories", y=1.01)
-    fig_ts.tight_layout()
+    fig_ts.legend(handles, leg_labels, loc="upper center", bbox_to_anchor=(0.5, 0.99), ncol=3, frameon=False)
+    fig_ts.suptitle(f"{model_name} - Reconstructed Trajectories", y=1.03)
+    fig_ts.tight_layout(rect=(0, 0, 1, 0.96))
 
     # 2. Phase-space portraits (2D or 3D)
     is_3d = dim >= 3
@@ -87,6 +87,7 @@ def plot_rollouts(
     rollouts: dict[int, np.ndarray],
     timestamps: np.ndarray,
     window: int,
+    rollout_mse_by_k: dict | None = None,
     model_name: str = "Model",
 ):
     """
@@ -101,11 +102,17 @@ def plot_rollouts(
     dim = true_eval.shape[1]
     labels = _coord_labels(dim)
 
+    def _mse_label(k: int, pred_k: np.ndarray) -> str:
+        if rollout_mse_by_k and str(k) in rollout_mse_by_k:
+            s = rollout_mse_by_k[str(k)]
+            return f"{s['mean']:.3g}±{s['std']:.2g}"
+        return f"{float(np.mean((pred_k - true_eval) ** 2)):.3g}"
+
     # 1. Per-dimension time series across rollout horizons k
     fig_ts, axes = plt.subplots(n_k, dim, figsize=(4.2 * dim, 2.2 * n_k), squeeze=False)
     for row, k in enumerate(ks):
         pred_k = rollouts[k]
-        mse_k = float(np.mean((pred_k - true_eval) ** 2))
+        mse_lbl = _mse_label(k, pred_k)
         for d in range(dim):
             ax = axes[row, d]
             ax.plot(t_eval, true_eval[:, d], color="black", lw=1.4, label="True")
@@ -113,22 +120,22 @@ def plot_rollouts(
             if row == 0:
                 ax.set_title(labels[d])
             if d == 0:
-                ax.set_ylabel(f"k={k}\nMSE={mse_k:.3g}")
+                ax.set_ylabel(f"k={k}\nMSE={mse_lbl}")
             if row == n_k - 1:
                 ax.set_xlabel("t")
             ax.grid(True, alpha=0.25)
 
     handles, leg_labels = axes[0, 0].get_legend_handles_labels()
-    fig_ts.legend(handles, leg_labels, loc="upper right", ncol=2, frameon=False)
-    fig_ts.suptitle(f"{model_name} — Rollout Comparison (Time Series)", y=1.01)
-    fig_ts.tight_layout()
+    fig_ts.legend(handles, leg_labels, loc="upper center", bbox_to_anchor=(0.5, 0.995), ncol=2, frameon=False)
+    fig_ts.suptitle(f"{model_name} — Rollout Comparison (Time Series)", y=1.02)
+    fig_ts.tight_layout(rect=(0, 0, 1, 0.97))
 
     # 2. Phase-space portraits across rollout horizons k
     is_3d = dim >= 3
     fig_phase = plt.figure(figsize=(3.8 * n_k, 3.8))
     for idx, k in enumerate(ks):
         pred_k = rollouts[k]
-        mse_k = float(np.mean((pred_k - true_eval) ** 2))
+        mse_lbl = _mse_label(k, pred_k)
         ax = fig_phase.add_subplot(1, n_k, idx + 1, projection="3d" if is_3d else None)
         if is_3d:
             ax.plot(true_eval[:, 0], true_eval[:, 1], true_eval[:, 2], color="black", lw=1.2, alpha=0.8, label="True")
@@ -142,7 +149,7 @@ def plot_rollouts(
             ax.set_xlabel(labels[0])
             ax.set_ylabel(labels[1])
             ax.grid(True, alpha=0.25)
-        ax.set_title(f"k={k} (MSE={mse_k:.3g})")
+        ax.set_title(f"k={k} (MSE={mse_lbl})")
         if idx == 0:
             ax.legend(fontsize=8)
 

@@ -21,8 +21,8 @@ model:
   state_dim: 32
   output_dim: 3
   use_gate: true   # false: exp semigroup, true: sigmoid gate
-  backbone_hidden_dim: 64
-  backbone_output_dim: 32
+  backbone_hidden_dim: 32
+  backbone_output_dim: 16
   backbone_activation_func: nn.SiLU
 
 train:
@@ -34,7 +34,7 @@ train:
   window: 64
   loss_window_weight: 1.0
   val_every: 25
-  checkpoint: false
+  checkpoint: true
   checkpoint_path: exp/wccfc-lorenz-no-rollout/best_model.pt
 
 save:

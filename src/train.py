@@ -251,5 +251,5 @@ def evaluate(model: nn.Module,
         "pred": np.concatenate(pred_samples, axis=0),
         "dt": np.concatenate(dt_samples, axis=0),
         "states": states_out,
-        "rollouts": rollout_comparison,
+        "rollouts": rollout_comparison
     }

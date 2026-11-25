@@ -33,6 +33,8 @@ def save(model, figs, names, performance, config: dict | None = None, path: str 
     if isinstance(eval_perf, dict):
         summary["test_loss"] = float(eval_perf["test_loss"])
         summary["horizon"] = int(eval_perf["horizon"])
+        if "metrics" in eval_perf:
+            summary["metrics"] = eval_perf["metrics"]
 
     with open(exp_dir / "performance.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)

@@ -1,4 +1,4 @@
-mode: train
+mode: eval
 device: cpu
 plot: true
 
